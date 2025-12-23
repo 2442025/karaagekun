@@ -218,3 +218,25 @@ def my_rentals():
 if __name__ == "__main__":
     # Flask の起動用（開発用）
     app.run(debug=True, host="0.0.0.0", port=5000)
+
+from flask import render_template
+
+@app.route("/")
+def login_page():
+    return render_template("login.html")
+
+@app.route("/home")
+def home_page():
+    station = Station.query.first()
+    return render_template("home.html", station=station)
+
+@app.route("/stations")
+def stations_page():
+    stations = Station.query.all()
+    return render_template("stations.html", stations=stations)
+
+@app.route("/history")
+def history_page():
+    rentals = Rental.query.all()
+    return render_template("history.html", rentals=rentals)
+
