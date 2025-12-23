@@ -1,5 +1,5 @@
 """
-Flask API サーバ（主要エンドポイント）
+Flask API サーバ（主要エンドポイント)
 - /register, /login
 - /stations, /stations/<id>
 - /rent, /return, /charge
