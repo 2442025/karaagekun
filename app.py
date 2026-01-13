@@ -36,6 +36,14 @@ from variables import (
 # Flask 初期化
 # --------------------
 app = Flask(__name__)
+
+# データベースの初期化（テーブルがなければ作成する）
+with app.app_context():
+    from db import engine
+    from models import Base
+    # ここでSQLを流し込まなくても、models.pyの定義を元にテーブルを自動作成します
+    Base.metadata.create_all(bind=engine)
+
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 app.config["SECRET_KEY"] = "change_me_in_production_123!"  # HTMLフォーム用
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
