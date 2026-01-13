@@ -174,15 +174,6 @@ def register_page():
                 session.add(user)
                 session.flush()  # IDを取得するためにflush
 
-                # 初期残高チャージ履歴を作成（INSERT）
-                if INITIAL_BALANCE_CENTS > 0:
-                    rental = Rental(
-                        user_id=user.id,
-                        battery_id=None,  # チャージはバッテリーなし
-                        status="charged",
-                        price_cents=-INITIAL_BALANCE_CENTS  # 負の値でチャージを表現
-                    )
-                    session.add(rental)
 
             logger.info(f"User {email} registered with initial balance {INITIAL_BALANCE_CENTS}")
             flash("登録が完了しました。ログインしてください", "success")
@@ -446,14 +437,7 @@ def charge_page():
                     # このアプリでは amount をそのまま balance_cents に足す実装になっています。
                     user.balance_cents += amount
 
-                    # チャージ履歴を作成（INSERT）
-                    rental = Rental(
-                        user_id=user.id,
-                        battery_id=None,
-                        status="charged",
-                        price_cents=-amount  # 負の値でチャージを表現
-                    )
-                    session.add(rental)
+
 
             flash(f"{amount}円をチャージしました", "success")
             return redirect(url_for("home_page"))
@@ -645,14 +629,7 @@ def api_charge():
                 user = session.get(User, user_id)
                 user.balance_cents += amount
 
-                # チャージ履歴を作成
-                rental = Rental(
-                    user_id=user.id,
-                    battery_id=None,
-                    status="charged",
-                    price_cents=-amount
-                )
-                session.add(rental)
+
 
         return jsonify({
             "msg": "charged", 
