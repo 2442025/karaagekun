@@ -459,9 +459,14 @@ def api_login():
             "balance": user.balance_cents
         })
 
-@app.route("/login", methods=["POST"], strict_slashes=False)
-def login():
-    """フォームログイン"""
+@app.route("/login", methods=["GET", "POST"], strict_slashes=False)
+def login_page():
+    """ログイン画面 + フォームログイン"""
+
+    if request.method == "GET":
+        return render_template("login.html")
+
+    # POST（ログイン処理）
     email = request.form.get("email")
     password = request.form.get("password")
 
@@ -475,11 +480,10 @@ def login():
             flash("メールアドレスまたはパスワードが間違っています", "error")
             return render_template("login.html"), 401
 
-        # JWTトークン生成
         access_token = create_access_token(identity=user.id)
         flask_session["user_id"] = user.id
         flask_session["access_token"] = access_token
-        
+
         logger.info(f"User {user.email} logged in")
         return redirect(url_for("home_page"))
 
