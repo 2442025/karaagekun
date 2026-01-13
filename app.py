@@ -691,3 +691,139 @@ if __name__ == "__main__":
         app.logger.setLevel(logging.DEBUG)
     
     app.run(debug=DEBUG_MODE, host="0.0.0.0", port=5000)
+
+# ====== 一時管理ルート（デバッグ・マイグレーション用） ======
+# 注意: セキュリティのため実行後すぐにこのコードを削除してください。
+import sqlite3
+import shutil
+import os
+import re
+from urllib.parse import urlparse
+
+# 保護キー（短期間だけ使う。Render の環境変数に ADMIN_KEY を設定するのが安全）
+ADMIN_KEY = os.environ.get("ADMIN_KEY") or app.config.get("SECRET_KEY", "change_me_in_production_123!")
+
+def _get_sqlite_path_from_url(db_url: str):
+    if not db_url or not db_url.startswith("sqlite://"):
+        return None
+    if db_url == "sqlite:///:memory:":
+        return ":memory:"
+    # sqlite:///path/to/file => return path/to/file
+    if db_url.startswith("sqlite:///"):
+        return db_url[len("sqlite:///"):]
+    return db_url[len("sqlite://"):]
+
+@app.route("/admin/schema", strict_slashes=False)
+def admin_schema():
+    """
+    現行 rentals テーブルのスキーマを返します。
+    呼び出し: /admin/schema?key=<ADMIN_KEY>
+    """
+    key = request.args.get("key", "")
+    if key != ADMIN_KEY:
+        return "Forbidden (invalid key)", 403
+
+    try:
+        from variables import DATABASE_URL
+    except Exception as e:
+        return f"Failed to import DATABASE_URL: {e}", 500
+
+    db_path = _get_sqlite_path_from_url(DATABASE_URL)
+    if not db_path:
+        return f"DATABASE_URL not sqlite or cannot determine path: {DATABASE_URL}", 400
+
+    if not os.path.exists(db_path):
+        return f"SQLite DB file not found at: {db_path}", 404
+
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        # PRAGMA table_info と CREATE TABLE 文を出力
+        info = "\nPRAGMA table_info(rentals):\n"
+        for row in c.execute("PRAGMA table_info(rentals);"):
+            info += str(row) + "\n"
+        info += "\nCREATE SQL:\n"
+        row = c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='rentals';").fetchone()
+        info += (row[0] if row else "No CREATE statement found") + "\n"
+        conn.close()
+        return "<pre>" + info + "</pre>"
+    except Exception as e:
+        return f"Error reading DB schema: {e}", 500
+
+@app.route("/admin/migrate-rentals-nullable", methods=["POST", "GET"], strict_slashes=False)
+def admin_migrate_rentals_nullable():
+    """
+    rentals.battery_id を NULL 許容にするマイグレーションを行います（SQLite用）。
+    呼び出し: GET/POST /admin/migrate-rentals-nullable?key=<ADMIN_KEY>
+    実行前に /admin/schema でスキーマを確認してください。
+    """
+    key = request.args.get("key", "")
+    if key != ADMIN_KEY:
+        return "Forbidden (invalid key)", 403
+
+    try:
+        from variables import DATABASE_URL
+    except Exception as e:
+        return f"Failed to import DATABASE_URL: {e}", 500
+
+    db_path = _get_sqlite_path_from_url(DATABASE_URL)
+    if not db_path:
+        return f"DATABASE_URL not sqlite or cannot determine path: {DATABASE_URL}", 400
+
+    if not os.path.exists(db_path):
+        return f"SQLite DB file not found at: {db_path}", 404
+
+    bak = db_path + ".bak"
+    try:
+        # backup
+        shutil.copyfile(db_path, bak)
+    except Exception as e:
+        return f"Failed to backup DB: {e}", 500
+
+    try:
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+
+        # Fetch original CREATE TABLE sql
+        row = c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='rentals';").fetchone()
+        if not row or not row[0]:
+            conn.close()
+            return "Cannot find rentals CREATE TABLE statement", 500
+        create_sql = row[0]
+
+        # Modify the CREATE TABLE SQL to make battery_id nullable:
+        # Replace patterns like "battery_id INTEGER NOT NULL" -> "battery_id INTEGER"
+        new_create_sql = re.sub(r"battery_id\s+[^,)]*NOT\s+NULL", "battery_id INTEGER", create_sql, flags=re.IGNORECASE)
+
+        # Ensure table name is rentals_new
+        new_create_sql = re.sub(r"CREATE\s+TABLE\s+\"?rentals\"?", "CREATE TABLE IF NOT EXISTS rentals_new", new_create_sql, flags=re.IGNORECASE)
+
+        # Start migration
+        c.execute("PRAGMA foreign_keys = OFF;")
+        c.execute("BEGIN TRANSACTION;")
+
+        c.execute(new_create_sql)
+
+        # Build column list from existing table
+        cols = [row[1] for row in c.execute("PRAGMA table_info(rentals);").fetchall()]
+        cols_list = ", ".join([f'"{col}"' for col in cols])
+
+        # Copy data
+        c.execute(f'INSERT INTO rentals_new ({cols_list}) SELECT {cols_list} FROM rentals;')
+
+        c.execute("DROP TABLE rentals;")
+        c.execute("ALTER TABLE rentals_new RENAME TO rentals;")
+
+        c.execute("COMMIT;")
+        c.execute("PRAGMA foreign_keys = ON;")
+        conn.close()
+        return f"Migration succeeded. Backup saved: {bak}"
+    except Exception as e:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        # restore backup
+        shutil.copyfile(bak, db_path)
+        return f"Migration failed and DB restored from backup. Error: {e}", 500
+# ====== 管理ルートここまで ======
