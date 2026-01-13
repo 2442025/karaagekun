@@ -37,6 +37,36 @@ from variables import (
 # --------------------
 app = Flask(__name__)
 
+import os
+
+# ====================
+# DB を「一度だけ」削除する処理
+# ====================
+
+DB_PATH = "mobile_battery.db"  # db.py の URI に合わせる
+RESET_FLAG_FILE = ".db_reset_done"
+
+if os.getenv("RESET_DB_ONCE") == "true" and not os.path.exists(RESET_FLAG_FILE):
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+
+    # 二度目以降に削除されないようフラグを作成
+    with open(RESET_FLAG_FILE, "w") as f:
+        f.write("done")
+
+# --------------------
+# Flask 初期化
+# --------------------
+app = Flask(__name__)
+
+# データベースの初期化
+with app.app_context():
+    from db import engine
+    from models import Base
+    Base.metadata.create_all(bind=engine)
+
+
+
 # データベースの初期化（テーブルがなければ作成する）
 with app.app_context():
     from db import engine
