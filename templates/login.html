@@ -4,7 +4,7 @@
 <div class="card">
     <h2 style="margin-bottom: 20px; text-align: center;">🔐 ログイン</h2>
     
-    <form method="post" action="/login">
+    <form method="post" action="{{ url_for('login_page') }}">
         <div class="form-group">
             <label for="email">メールアドレス</label>
             <input type="email" id="email" name="email" placeholder="your@email.com" required>
@@ -20,7 +20,7 @@
     
     <div style="text-align: center; margin-top: 20px;">
         <p>初めてご利用ですか？</p>
-        <a href="/register" class="btn btn-secondary">新規登録</a>
+        <a href="{{ url_for('register_page') }}" class="btn btn-secondary">新規登録</a>
     </div>
 </div>
 {% endblock %}
