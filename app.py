@@ -90,32 +90,14 @@ def get_user_rentals_with_details(user_id):
 # 画面ルーティング
 # ====================
 
-@app.route("/", methods=["GET", "POST"], strict_slashes=False)
-def login_page():
-    """ログイン画面"""
-    if request.method == "GET":
-        return render_template("login.html")
-
-    email = request.form.get("email")
-    password = request.form.get("password")
-
-    if not email or not password:
-        flash("メールアドレスとパスワードを入力してください", "error")
-        return render_template("login.html"), 400
-
-    with get_session_context() as session:
-        user = session.query(User).filter_by(email=email).first()
-        if not user or not verify_password(password, user.password_hash):
-            flash("メールアドレスまたはパスワードが間違っています", "error")
-            return render_template("login.html"), 401
-
-        # JWTトークン生成
-        access_token = create_access_token(identity=user.id)
-        flask_session["user_id"] = user.id
-        flask_session["access_token"] = access_token
-        
-        logger.info(f"User {user.email} logged in")
+# ルート "/" はログインページへリダイレクトする（重複定義の解消）
+@app.route("/", strict_slashes=False)
+def index():
+    user_id = flask_session.get("user_id")
+    # ログイン済みならホームへ、そうでなければログイン画面へリダイレクト
+    if user_id:
         return redirect(url_for("home_page"))
+    return redirect(url_for("login_page"))
 
 @app.route("/register", methods=["GET", "POST"], strict_slashes=False)
 def register_page():
@@ -237,7 +219,7 @@ def station_detail_page(station_id):
             flash("指定されたスタンドは存在しません", "error")
             return redirect(url_for("stations_page"))
 
-        # そのスタンドの利用可能バッテリーを取得（JOINクエリ）
+        # そのスタンドの利用可能��ッテリーを取得（JOINクエリ）
         batteries = session.query(Battery).filter(
             Battery.station_id == station_id,
             Battery.available == True
@@ -422,7 +404,7 @@ def charge_page():
                     )
                     session.add(rental)
 
-            flash(f"{amount}円をチャージしました", "success")
+            flash(f"{amount}円をチャー��しました", "success")
             return redirect(url_for("home_page"))
 
         except Exception as e:
