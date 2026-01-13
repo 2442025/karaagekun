@@ -82,7 +82,7 @@ def get_user_rentals_with_details(user_id):
 # 画面ルーティング
 # ====================
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/", methods=["GET", "POST"], strict_slashes=False)
 def login_page():
     """ログイン画面"""
     if request.method == "GET":
@@ -109,7 +109,7 @@ def login_page():
         logger.info(f"User {user.email} logged in")
         return redirect(url_for("home_page"))
 
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register", methods=["GET", "POST"], strict_slashes=False)
 def register_page():
     """新規登録画面"""
     if request.method == "GET":
@@ -165,7 +165,7 @@ def register_page():
             flash("登録に失敗しました。時間をおいて再度お試しください", "error")
             return render_template("register.html"), 500
 
-@app.route("/home")
+@app.route("/home", strict_slashes=False)
 def home_page():
     """ホーム画面"""
     user_id = flask_session.get("user_id")
@@ -195,7 +195,7 @@ def home_page():
                          balance=balance,
                          user_id=user_id)
 
-@app.route("/stations")
+@app.route("/stations", strict_slashes=False)
 def stations_page():
     """スタンド一覧画面"""
     user_id = flask_session.get("user_id")
@@ -216,7 +216,7 @@ def stations_page():
 
     return render_template("stations.html", stations=station_data)
 
-@app.route("/stations/<int:station_id>")
+@app.route("/stations/<int:station_id>", strict_slashes=False)
 def station_detail_page(station_id):
     """スタンド詳細画面（利用可能バッテリー一覧）"""
     user_id = flask_session.get("user_id")
@@ -242,7 +242,7 @@ def station_detail_page(station_id):
                          batteries=batteries,
                          balance=balance)
 
-@app.route("/rent/<int:battery_id>", methods=["GET", "POST"])
+@app.route("/rent/<int:battery_id>", methods=["GET", "POST"], strict_slashes=False)
 def rent_page(battery_id):
     """貸出確認画面"""
     user_id = flask_session.get("user_id")
@@ -295,7 +295,7 @@ def rent_page(battery_id):
 
     return render_template("rent.html", battery=battery, balance=balance)
 
-@app.route("/return/<int:rental_id>", methods=["GET", "POST"])
+@app.route("/return/<int:rental_id>", methods=["GET", "POST"], strict_slashes=False)
 def return_page(rental_id):
     """返却画面"""
     user_id = flask_session.get("user_id")
@@ -359,7 +359,7 @@ def return_page(rental_id):
                          station=station,
                          stations=stations)
 
-@app.route("/history")
+@app.route("/history", strict_slashes=False)
 def history_page():
     """利用履歴画面"""
     user_id = flask_session.get("user_id")
@@ -386,7 +386,7 @@ def history_page():
 
     return render_template("history.html", history=history_list)
 
-@app.route("/charge", methods=["GET", "POST"])
+@app.route("/charge", methods=["GET", "POST"], strict_slashes=False)
 def charge_page():
     """チャージ画面"""
     user_id = flask_session.get("user_id")
@@ -425,7 +425,7 @@ def charge_page():
     balance = get_user_balance(user_id)
     return render_template("charge.html", balance=balance)
 
-@app.route("/logout")
+@app.route("/logout", strict_slashes=False)
 def logout():
     """ログアウト"""
     flask_session.clear()
@@ -436,7 +436,7 @@ def logout():
 # API（JSON）
 # ====================
 
-@app.route("/api/login", methods=["POST"])
+@app.route("/api/login", methods=["POST"], strict_slashes=False)
 def api_login():
     """APIログイン"""
     data = request.get_json() or {}
@@ -459,7 +459,7 @@ def api_login():
             "balance": user.balance_cents
         })
 
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["POST"], strict_slashes=False)
 def login():
     """フォームログイン"""
     email = request.form.get("email")
@@ -483,7 +483,7 @@ def login():
         logger.info(f"User {user.email} logged in")
         return redirect(url_for("home_page"))
 
-@app.route("/api/stations", methods=["GET"])
+@app.route("/api/stations", methods=["GET"], strict_slashes=False)
 def api_stations():
     """API: スタンド一覧"""
     with get_session_context() as session:
@@ -499,7 +499,7 @@ def api_stations():
             })
         return jsonify(result)
 
-@app.route("/api/rent", methods=["POST"])
+@app.route("/api/rent", methods=["POST"], strict_slashes=False)
 @jwt_required()
 def api_rent():
     """API: 貸出"""
@@ -535,7 +535,7 @@ def api_rent():
         logger.error(f"API rent failed: {e}")
         return jsonify({"msg": "rental failed"}), 500
 
-@app.route("/api/return", methods=["POST"])
+@app.route("/api/return", methods=["POST"], strict_slashes=False)
 @jwt_required()
 def api_return():
     """API: 返却"""
@@ -579,7 +579,7 @@ def api_return():
         logger.error(f"API return failed: {e}")
         return jsonify({"msg": "return failed"}), 500
 
-@app.route("/api/charge", methods=["POST"])
+@app.route("/api/charge", methods=["POST"], strict_slashes=False)
 @jwt_required()
 def api_charge():
     """API: チャージ"""
@@ -613,7 +613,7 @@ def api_charge():
         logger.error(f"API charge failed: {e}")
         return jsonify({"msg": "charge failed"}), 500
 
-@app.route("/api/user", methods=["GET"])
+@app.route("/api/user", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def api_user():
     """API: ユーザー情報取得"""
@@ -630,7 +630,7 @@ def api_user():
             "created_at": user.created_at.isoformat()
         })
 
-@app.route("/api/history", methods=["GET"])
+@app.route("/api/history", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def api_history():
     """API: 利用履歴取得"""
